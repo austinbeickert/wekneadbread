@@ -1,5 +1,1 @@
-41254.69999999004
-10869.0
-52.0
-92096.69999998748
-9242
+{"bread_count": 0.0, "stray_bakers": 0, "upgrade_cost": 10, "num_baked_gray": 0, "num_baked_stray": 0.0, "lifetime_bread": 0.0}
