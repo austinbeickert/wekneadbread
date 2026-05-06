@@ -1,1 +1,1 @@
-{"bread_count": 0.0, "stray_bakers": 0, "upgrade_cost": 10, "num_baked_gray": 0, "num_baked_stray": 0.0, "lifetime_bread": 0.0}
+{"bread_count": 1.0, "stray_bakers": 0, "upgrade_cost": 10, "num_baked_gray": 1, "num_baked_stray": 0.0, "lifetime_bread": 1.0, "bps": 0}
