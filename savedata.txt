@@ -1,1 +1,1 @@
-{"bread_count": 1.0, "stray_bakers": 0, "upgrade_cost": 10, "num_baked_gray": 1, "num_baked_stray": 0.0, "lifetime_bread": 1.0, "bps": 0}
+{"bread_count": 14549.247949216353, "stray_baker_count": 59, "stray_baker_upgrade_cost": 24581, "num_baked_gray": 46423, "num_baked_stray": 190295.09999999672, "lifetime_bread": 236718.09999999095, "bps": 5.9, "click_power": 15, "stray_power": 0.1, "upgrades": {"multi_paw_baking": {"level": 14, "cost": 29192.926025390625}}}
