@@ -7,7 +7,7 @@ from PIL import Image, ImageTk
 debug = 1
 debug_click = 1
 
-class Upgrade:
+class Upgrade: 
     def __init__(self, name, base_cost, effect):
         self.name = name
         self.base_cost = base_cost
@@ -45,6 +45,13 @@ class Game:
         self.bps = 0
         self.click_power = 1
         self.stray_power = 0.1
+        self.upgrades = {
+            "multi_paw_baking": Upgrade (
+                "Multi-Paw Baking",
+                100,
+                multi_paw_baking
+             )   
+        }
 
     def reset_game_data(self):
         self.bread_count = 0
@@ -57,7 +64,7 @@ class Game:
         self.click_power = 1
         self.stray_power = 0.1
 
-        for up in upgrades.values():
+        for up in self.upgrades.values():
             up.cost = up.base_cost
             up.level = 0
 
@@ -102,7 +109,7 @@ class Game:
                     "level": up.level,
                     "cost": up.cost
                 }
-                for key, up in upgrades.items()
+                for key, up in self.upgrades.items()
             }
         }
 
@@ -132,7 +139,7 @@ class Game:
 
             # upgrades
             upgrade_data = data.get("upgrades", {})
-            for key, up in upgrades.items():
+            for key, up in self.upgrades.items():
                 if key in upgrade_data:
                     up.level = upgrade_data[key].get("level", 0)
                     up.cost = upgrade_data[key].get("cost", up.base_cost)
@@ -144,14 +151,6 @@ class Game:
 
 def multi_paw_baking(game):
     game.click_power += 1
-
-upgrades = {
-    "multi_paw_baking": Upgrade(
-        "Multi-Paw Baking",
-        100,
-        multi_paw_baking
-    )
-}
 
 game = Game()
 game.load_game_data()
@@ -176,7 +175,7 @@ def update_ui():
     counter_label.config(text=f"Bread: {game.bread_count:,.1f}")
     hire_stray_bakers_label.config(text=f"You have {int(game.stray_baker_count)} strays baking bread\n Cost: {int(game.stray_baker_upgrade_cost):,.2f}")
     per_second_label.config(text=f"per second: {game.bps:,.1f}")
-    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {int(upgrades['multi_paw_baking'].cost):,}\n Current click power: {game.click_power:,}")
+    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {int(game.upgrades['multi_paw_baking'].cost):,}\n Current click power: {game.click_power:,}")
 
 root = tk.Tk()
 root.title("We Knead Bread")
@@ -214,15 +213,14 @@ click_paw.pack(pady=(50,0))
         #label "Click for bread"
 tk.Label(gray_baker_click_frame, text="Click for bread", bg="gray").pack(padx=10, pady=10)
 
-
     #upgrades
 gray_baker_upgrade_frame = tk.Frame(gray_baker_frame, width=620, height=620, bg="gray")
 gray_baker_upgrade_frame.pack(padx=10, pady=10)
 tk.Label(gray_baker_upgrade_frame, text="Upgrades here", bg="gray").pack(padx=10, pady=10)
         #multi-paw baking upgrade button
 upgrade_button_multi_paw_baking = tk.Button(gray_baker_upgrade_frame, 
-                                            text=f"Multi-Paw Baking | Cost: {upgrades['multi_paw_baking'].cost}\n Current click power: {game.click_power}", 
-                                            command=lambda: buy_upgrade(upgrades['multi_paw_baking']))
+                                            text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost}\n Current click power: {game.click_power}", 
+                                            command=lambda: buy_upgrade(game.upgrades['multi_paw_baking']))
 upgrade_button_multi_paw_baking.pack(padx=10,pady=10)
 gray_baker_upgrade_frame.pack_propagate(False)
 
@@ -308,7 +306,9 @@ def save_game_data():
     game.save_game_data()
     root.after(5000, save_game_data)
     if debug:
-        print(f"Game Saved - Bread: {int(game.bread_count)}, Paw-made: {int(game.num_baked_gray)}, Strays: {int(game.stray_baker_count)}, Baked by strays: {int(game.num_baked_stray)}, Upgrade Cost: {int(game.stray_baker_upgrade_cost)}, BPS: {game.bps:.2f}, Click Power: {game.click_power}")
+        print("------------Game Saved------------")
+        for key, value in game.get_save_data().items():
+            print(f"{key}: {value}")
 
 def run_autobaker_loop():
     game.run_autobaker()
