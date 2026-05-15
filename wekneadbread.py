@@ -1,10 +1,11 @@
 import tkinter as tk
 import json
+import random
 from tkinter import *
 from PIL import Image, ImageTk
 
 #Debug switch
-debug = 1
+debug = 0
 debug_click = 1
 
 class Upgrade: 
@@ -50,7 +51,12 @@ class Game:
                 "Multi-Paw Baking",
                 100,
                 multi_paw_baking
-             )   
+             ),
+             "purrfect_loaf": Upgrade (
+                 "Purr-fect Loaf",
+                 1000,
+                 purrfect_loaf
+             ) 
         }
 
     def reset_game_data(self):
@@ -72,12 +78,25 @@ class Game:
             print("We Knead Bread data RESET")
 
     def bake_bread(self):
-        self.bread_count += self.click_power
-        self.num_baked_gray += self.click_power
-        self.lifetime_bread += self.click_power
+        bread_gained = self.click_power
+
+        if self.upgrades["purrfect_loaf"].level > 0:
+
+            if self.determine_crit():
+                bread_gained = self.click_power * 2
+                print("A PURR-FECT LOAF!")
+        
+        self.bread_count += bread_gained
+        self.num_baked_gray += bread_gained
+        self.lifetime_bread += bread_gained
         if debug_click:
             print(f"Bread Baked. Total {self.bread_count}, Lifetime Total {self.lifetime_bread}")
     
+    
+    def determine_crit(self):
+        return random.randint(1,100) <= self.upgrades['purrfect_loaf'].level
+
+
     def hire_stray(self):
         if self.bread_count >= self.stray_baker_upgrade_cost:
             self.bread_count -= self.stray_baker_upgrade_cost
@@ -152,6 +171,9 @@ class Game:
 def multi_paw_baking(game):
     game.click_power += 1
 
+def purrfect_loaf(game):
+    pass
+
 game = Game()
 game.load_game_data()
 
@@ -175,13 +197,15 @@ def update_ui():
     counter_label.config(text=f"Bread: {game.bread_count:,.1f}")
     hire_stray_bakers_label.config(text=f"You have {int(game.stray_baker_count)} strays baking bread\n Cost: {int(game.stray_baker_upgrade_cost):,.2f}")
     per_second_label.config(text=f"per second: {game.bps:,.1f}")
-    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {int(game.upgrades['multi_paw_baking'].cost):,}\n Current click power: {game.click_power:,}")
+    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost:,.2f}\n Current click power: {game.click_power:,}")
+    upgrade_button_purrfect_loaf.config(text=f"Purr-fect Loaf | Cost: {game.upgrades['purrfect_loaf'].cost:,.2f}\n Current chance for x2 bread: {game.upgrades['purrfect_loaf'].level}%")
 
 root = tk.Tk()
 root.title("We Knead Bread")
 root.geometry("1920x1080")
 root.resizable(True, False)
 root.config(background="DarkOrange4")
+
 
 #main container
 main_frame = tk.Frame(root, bg="DarkOrange4")
@@ -217,12 +241,22 @@ tk.Label(gray_baker_click_frame, text="Click for bread", bg="gray").pack(padx=10
 gray_baker_upgrade_frame = tk.Frame(gray_baker_frame, width=620, height=620, bg="gray")
 gray_baker_upgrade_frame.pack(padx=10, pady=10)
 tk.Label(gray_baker_upgrade_frame, text="Upgrades here", bg="gray").pack(padx=10, pady=10)
+
         #multi-paw baking upgrade button
 upgrade_button_multi_paw_baking = tk.Button(gray_baker_upgrade_frame, 
-                                            text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost}\n Current click power: {game.click_power}", 
+                                            text=f"Multi-Paw Baking | Cost: {int(game.upgrades['multi_paw_baking'].cost)}\n Current click power: {game.click_power}", 
                                             command=lambda: buy_upgrade(game.upgrades['multi_paw_baking']))
 upgrade_button_multi_paw_baking.pack(padx=10,pady=10)
 gray_baker_upgrade_frame.pack_propagate(False)
+
+        #Purr-fect loaf
+upgrade_button_purrfect_loaf = tk.Button(gray_baker_upgrade_frame, 
+                                            text=f"Purr-fect Loaf | Cost: {int(game.upgrades['purrfect_loaf'].cost)}\n Current chance for x2 bread: {game.upgrades['purrfect_loaf'].level * 2}", 
+                                            command=lambda: buy_upgrade(game.upgrades['purrfect_loaf']))
+upgrade_button_purrfect_loaf.pack(padx=10,pady=10)
+gray_baker_upgrade_frame.pack_propagate(False)
+
+
 
 #right column containers
 stray_baker_frame = tk.Frame(main_frame, width=640, bg="DarkOrange1")
@@ -282,6 +316,8 @@ per_second_label.pack()
 
 reset_button = tk.Button(bread_count_frame, text="Reset Game", command=reset_game_data_on_click)
 reset_button.pack(pady=10)
+
+    #pop-up box
 
 #bottom middle box
 gumbie_frame = tk.Frame(middle_frame, width=640, height=660, bg="DarkOrange1")
