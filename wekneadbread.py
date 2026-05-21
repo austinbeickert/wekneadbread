@@ -4,9 +4,10 @@ import random
 from tkinter import *
 from PIL import Image, ImageTk
 
-#Debug switch
+#Debug switches
 debug = 0
-debug_click = 1
+debug_click = 0
+debug_animate = 1
 
 class Upgrade: 
     def __init__(self, name, base_cost, effect):
@@ -27,7 +28,7 @@ class Upgrade:
 
             self.level += 1
 
-            self.cost *= 1.5
+            self.cost = round(self.cost * 1.5)
 
             if debug:
                 print(f"{self.name} bought")
@@ -46,17 +47,24 @@ class Game:
         self.bps = 0
         self.click_power = 1
         self.stray_power = 0.1
+        self.crit_chance = 0
+        self.kitten_staff_multiplier = 0.05
         self.upgrades = {
             "multi_paw_baking": Upgrade (
                 "Multi-Paw Baking",
-                100,
+                500,
                 multi_paw_baking
              ),
              "purrfect_loaf": Upgrade (
                  "Purr-fect Loaf",
                  1000,
                  purrfect_loaf
-             ) 
+             ),
+             "kitten_staff": Upgrade (
+                 "Kitten Staff",
+                 1500,
+                 kitten_staff
+             ),
         }
 
     def reset_game_data(self):
@@ -69,6 +77,8 @@ class Game:
         self.bps = 0
         self.click_power = 1
         self.stray_power = 0.1
+        self.crit_chance = 0
+        self.kitten_staff_multiplier = 0.05
 
         for up in self.upgrades.values():
             up.cost = up.base_cost
@@ -78,23 +88,43 @@ class Game:
             print("We Knead Bread data RESET")
 
     def bake_bread(self):
-        bread_gained = self.click_power
+        amount = self.calculate_bread_gained_on_click()
 
-        if self.upgrades["purrfect_loaf"].level > 0:
+        self.bread_count += amount
+        self.num_baked_gray += amount
+        self.lifetime_bread += amount
 
-            if self.determine_crit():
-                bread_gained = self.click_power * 2
-                print("A PURR-FECT LOAF!")
-        
-        self.bread_count += bread_gained
-        self.num_baked_gray += bread_gained
-        self.lifetime_bread += bread_gained
+        if debug_animate:
+            x = random.randint(25, 100)
+            create_floating_text(gray_popup_canvas, f"+{amount:,.1f}", x, 350)
+
         if debug_click:
             print(f"Bread Baked. Total {self.bread_count}, Lifetime Total {self.lifetime_bread}")
+            print(f"Kitten Staff bonus: {game.get_kitten_staff_bonus()}")
+
+        return amount
     
+    def calculate_bread_gained_on_click(self):
+        bread_gained = self.click_power
+        #Get kitten staff bonus
+        if self.upgrades["kitten_staff"].level > 0:
+            bread_gained += self.get_kitten_staff_bonus()     
+            
+
+        #Purr-fect loaf
+        if self.upgrades["purrfect_loaf"].level > 0:
+            if self.determine_crit():
+                bread_gained *= 2
+                print("A PURR-FECT LOAF!")
+        
+        return bread_gained
+ 
+    
+    def get_kitten_staff_bonus(self):
+        return self.stray_baker_count * self.kitten_staff_multiplier
     
     def determine_crit(self):
-        return random.randint(1,100) <= self.upgrades['purrfect_loaf'].level
+        return random.randint(1,100) <= self.crit_chance
 
 
     def hire_stray(self):
@@ -172,7 +202,10 @@ def multi_paw_baking(game):
     game.click_power += 1
 
 def purrfect_loaf(game):
-    pass
+    game.crit_chance += 1
+
+def kitten_staff(game):
+    game.kitten_staff_multiplier += 0.05
 
 game = Game()
 game.load_game_data()
@@ -193,12 +226,35 @@ def reset_game_data_on_click():
     game.reset_game_data()
     update_ui()
 
+def create_floating_text(canvas,text, x, y):
+    text_id = canvas.create_text(
+        x,
+        y,
+        text=text,
+        fill="white",
+        font=("Arial", 16, "bold")
+    )
+    animate_floating_text(canvas, text_id)
+
+def animate_floating_text(canvas, text_id):
+    canvas.move(text_id, 0, -2)
+
+    y = canvas.coords(text_id)[1]
+
+    if y > 10:
+        canvas.after(10, lambda: animate_floating_text(canvas, text_id))
+    else:
+        canvas.delete(text_id)
+
+
 def update_ui():
     counter_label.config(text=f"Bread: {game.bread_count:,.1f}")
     hire_stray_bakers_label.config(text=f"You have {int(game.stray_baker_count)} strays baking bread\n Cost: {int(game.stray_baker_upgrade_cost):,.2f}")
     per_second_label.config(text=f"per second: {game.bps:,.1f}")
-    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost:,.2f}\n Current click power: {game.click_power:,}")
-    upgrade_button_purrfect_loaf.config(text=f"Purr-fect Loaf | Cost: {game.upgrades['purrfect_loaf'].cost:,.2f}\n Current chance for x2 bread: {game.upgrades['purrfect_loaf'].level}%")
+    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost:,.0f}\n Increase click power by [+{game.click_power:,}]")
+    upgrade_button_purrfect_loaf.config(text=f"Purr-fect Loaf | Cost: {game.upgrades['purrfect_loaf'].cost:,.0f}\n [{game.crit_chance}%] chance to bake double bread")
+    upgrade_button_kitten_staff.config(text=f"Kitten Staff | Cost: {int(game.upgrades['kitten_staff'].cost):,.0f}\n Click power increased by [{game.kitten_staff_multiplier * 100:,.0f}%] of your stray bakers.")
+
 
 root = tk.Tk()
 root.title("We Knead Bread")
@@ -243,20 +299,22 @@ gray_baker_upgrade_frame.pack(padx=10, pady=10)
 tk.Label(gray_baker_upgrade_frame, text="Upgrades here", bg="gray").pack(padx=10, pady=10)
 
         #multi-paw baking upgrade button
-upgrade_button_multi_paw_baking = tk.Button(gray_baker_upgrade_frame, 
-                                            text=f"Multi-Paw Baking | Cost: {int(game.upgrades['multi_paw_baking'].cost)}\n Current click power: {game.click_power}", 
+upgrade_button_multi_paw_baking = tk.Button(gray_baker_upgrade_frame,
                                             command=lambda: buy_upgrade(game.upgrades['multi_paw_baking']))
 upgrade_button_multi_paw_baking.pack(padx=10,pady=10)
 gray_baker_upgrade_frame.pack_propagate(False)
 
         #Purr-fect loaf
 upgrade_button_purrfect_loaf = tk.Button(gray_baker_upgrade_frame, 
-                                            text=f"Purr-fect Loaf | Cost: {int(game.upgrades['purrfect_loaf'].cost)}\n Current chance for x2 bread: {game.upgrades['purrfect_loaf'].level * 2}", 
                                             command=lambda: buy_upgrade(game.upgrades['purrfect_loaf']))
 upgrade_button_purrfect_loaf.pack(padx=10,pady=10)
 gray_baker_upgrade_frame.pack_propagate(False)
 
-
+        #Kitten staff
+upgrade_button_kitten_staff = tk.Button(gray_baker_upgrade_frame, 
+                                            command=lambda: buy_upgrade(game.upgrades['kitten_staff']))
+upgrade_button_kitten_staff.pack(padx=10,pady=10)
+gray_baker_upgrade_frame.pack_propagate(False)
 
 #right column containers
 stray_baker_frame = tk.Frame(main_frame, width=640, bg="DarkOrange1")
@@ -306,6 +364,17 @@ bread_count_frame = tk.Frame(middle_frame, width=640, height=400, bg="DarkOrange
 bread_count_frame.pack(pady=(0,0))
 bread_count_frame.pack_propagate(False)
 
+#gray popup canvas
+gray_popup_canvas = tk.Canvas(
+    middle_frame,
+    width=120,
+    height=400,
+    bg="DarkOrange1",
+    highlightthickness=0
+)
+
+gray_popup_canvas.place(relx=0.0)
+
     #bread counter node
 counter_label = tk.Label(bread_count_frame, text=f"Bread: {game.bread_count}", bg="DarkOrange1", font=("Ariel", 32))
 counter_label.pack(pady=(150,0))
@@ -317,7 +386,6 @@ per_second_label.pack()
 reset_button = tk.Button(bread_count_frame, text="Reset Game", command=reset_game_data_on_click)
 reset_button.pack(pady=10)
 
-    #pop-up box
 
 #bottom middle box
 gumbie_frame = tk.Frame(middle_frame, width=640, height=660, bg="DarkOrange1")
@@ -350,6 +418,7 @@ def run_autobaker_loop():
     game.run_autobaker()
     update_ui()
     root.after(1000, run_autobaker_loop)
+
 
 update_ui()
 save_game_data()
