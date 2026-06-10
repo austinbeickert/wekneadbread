@@ -1,6 +1,7 @@
 import tkinter as tk
 import json
 import random
+import datetime
 from tkinter import *
 from PIL import Image, ImageTk
 
@@ -8,6 +9,8 @@ from PIL import Image, ImageTk
 debug = 0
 debug_click = 0
 debug_animate = 1
+debug_datetime = 0
+debug_daily_stray = 0
 
 class Upgrade: 
     def __init__(self, name, base_cost, effect):
@@ -49,6 +52,11 @@ class Game:
         self.stray_power = 0.1
         self.crit_chance = 0
         self.kitten_staff_multiplier = 0.05
+        self.last_free_stray_date = None
+        self.free_strays_found = 0
+        self.free_stray_amount = 0
+        self.overtime_baking_bonus_multiplier = 1.5
+
         self.upgrades = {
             "multi_paw_baking": Upgrade (
                 "Multi-Paw Baking",
@@ -65,6 +73,16 @@ class Game:
                  1500,
                  kitten_staff
              ),
+             "free_stray": Upgrade (
+                 "Cat Distribution System",
+                 2000,
+                 free_stray
+             ),
+             "overtime_baking": Upgrade (
+                 "Overtime Baking",
+                 5000,
+                 overtime_baking
+             )
         }
 
     def reset_game_data(self):
@@ -79,6 +97,10 @@ class Game:
         self.stray_power = 0.1
         self.crit_chance = 0
         self.kitten_staff_multiplier = 0.05
+        self.free_strays_found = 0
+        self.free_stray_amount = 0
+        self.last_free_stray_date = None
+        self.overtime_baking_bonus_multiplier = 1.5
 
         for up in self.upgrades.values():
             up.cost = up.base_cost
@@ -102,7 +124,15 @@ class Game:
             print(f"Bread Baked. Total {self.bread_count}, Lifetime Total {self.lifetime_bread}")
             print(f"Kitten Staff bonus: {game.get_kitten_staff_bonus()}")
 
+        if debug_datetime:
+            print(f"Current time: {datetime.datetime.now().strftime('%H')}")
+            print(f"Is overtime baking: {self.is_overtime_baking()}")
+
         return amount
+    
+    def is_overtime_baking(self):
+        current_hour = datetime.datetime.now().hour
+        return current_hour >= 17 or current_hour < 9
     
     def calculate_bread_gained_on_click(self):
         bread_gained = self.click_power
@@ -117,29 +147,53 @@ class Game:
                 bread_gained *= 2
                 print("A PURR-FECT LOAF!")
         
+        if self.upgrades["overtime_baking"].level > 0 and self.is_overtime_baking():
+            bread_gained *= self.overtime_baking_bonus_multiplier
+
         return bread_gained
- 
-    
+
     def get_kitten_staff_bonus(self):
         return self.stray_baker_count * self.kitten_staff_multiplier
     
     def determine_crit(self):
         return random.randint(1,100) <= self.crit_chance
 
-
     def hire_stray(self):
         if self.bread_count >= self.stray_baker_upgrade_cost:
             self.bread_count -= self.stray_baker_upgrade_cost
             self.stray_baker_count += 1
-            amount = self.stray_baker_count * self.stray_power
             self.stray_baker_upgrade_cost = int(self.stray_baker_upgrade_cost * 1.15)
-            self.bps = amount
     
+    def calculate_bps(self):
+        self.bps = (self.stray_baker_count) * self.stray_power
+
     def run_autobaker(self):
-        amount = self.stray_baker_count * self.stray_power      
+        amount = (self.stray_baker_count) * self.stray_power
         self.bread_count += amount
         self.num_baked_stray += amount
-        self.lifetime_bread += amount          
+        self.lifetime_bread += amount
+
+    def check_daily_stray(self):
+        if debug_daily_stray:
+            print("Checking for daily stray...")
+        if self.upgrades["free_stray"].level == 0:
+            return
+
+        today = str(datetime.date.today())
+
+        if debug_daily_stray:
+            print(f"Last free stray date: {self.last_free_stray_date}, Today: {today}")
+
+        if self.last_free_stray_date != today:
+            self.free_strays_found += self.free_stray_amount
+            self.stray_baker_count += self.free_stray_amount
+            self.last_free_stray_date = today
+            self.save_game_data()
+            if debug_daily_stray:
+                print(
+                    f"Cat Distribution System has been activated!"
+                    f"+{self.free_stray_amount} stray(s)!"
+                )   
     
     def get_save_data(self):
         return {
@@ -152,7 +206,12 @@ class Game:
             "bps": self.bps,
             "click_power": self.click_power,
             "stray_power": self.stray_power,
-
+            "crit_chance": self.crit_chance,
+            "kitten_staff_multiplier": self.kitten_staff_multiplier,
+            "free_strays_found": self.free_strays_found,
+            "free_stray_amount": self.free_stray_amount,
+            "last_free_stray_date": self.last_free_stray_date,
+            "overtime_baking_bonus_multiplier": self.overtime_baking_bonus_multiplier,
             "upgrades":{
                 key: {
                     "level": up.level,
@@ -185,6 +244,12 @@ class Game:
             self.bps = data.get("bps", 0)
             self.click_power = data.get("click_power", 1)
             self.stray_power = data.get("stray_power", 0.1)
+            self.crit_chance = data.get("crit_chance", 0)
+            self.kitten_staff_multiplier = data.get("kitten_staff_multiplier", 1.0)
+            self.free_strays_found = data.get("free_strays_found", 0)
+            self.free_stray_amount = data.get("free_stray_amount", 0)
+            self.last_free_stray_date = data.get("last_free_stray_date", None)
+            self.overtime_baking_bonus_multiplier = data.get("overtime_baking_bonus_multiplier", 1.5)
 
             # upgrades
             upgrade_data = data.get("upgrades", {})
@@ -198,6 +263,7 @@ class Game:
         if debug:
             print("We Knead Bread data LOADED")
 
+#upgrade stat changes
 def multi_paw_baking(game):
     game.click_power += 1
 
@@ -206,6 +272,12 @@ def purrfect_loaf(game):
 
 def kitten_staff(game):
     game.kitten_staff_multiplier += 0.05
+
+def free_stray(game):
+    game.free_stray_amount += 1
+    
+def overtime_baking(game):
+    game.overtime_baking_bonus_multiplier += 0.1
 
 game = Game()
 game.load_game_data()
@@ -248,13 +320,15 @@ def animate_floating_text(canvas, text_id):
 
 
 def update_ui():
+    game.calculate_bps()
     counter_label.config(text=f"Bread: {game.bread_count:,.1f}")
     hire_stray_bakers_label.config(text=f"You have {int(game.stray_baker_count)} strays baking bread\n Cost: {int(game.stray_baker_upgrade_cost):,.2f}")
     per_second_label.config(text=f"per second: {game.bps:,.1f}")
-    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost:,.0f}\n Increase click power by [+{game.click_power:,}]")
-    upgrade_button_purrfect_loaf.config(text=f"Purr-fect Loaf | Cost: {game.upgrades['purrfect_loaf'].cost:,.0f}\n [{game.crit_chance}%] chance to bake double bread")
-    upgrade_button_kitten_staff.config(text=f"Kitten Staff | Cost: {int(game.upgrades['kitten_staff'].cost):,.0f}\n Click power increased by [{game.kitten_staff_multiplier * 100:,.0f}%] of your stray bakers.")
-
+    upgrade_button_multi_paw_baking.config(text=f"Multi-Paw Baking | Cost: {game.upgrades['multi_paw_baking'].cost:,.0f} | Level: {game.upgrades['multi_paw_baking'].level}\n Increase baking power by 1 | (+{game.click_power:,})")
+    upgrade_button_purrfect_loaf.config(text=f"Purr-fect Loaf | Cost: {game.upgrades['purrfect_loaf'].cost:,.0f} | Level: {game.upgrades['purrfect_loaf'].level}\n +1% chance to bake double bread | ({game.crit_chance}%)")
+    upgrade_button_kitten_staff.config(text=f"Kitten Staff | Cost: {int(game.upgrades['kitten_staff'].cost):,.0f} | Level: {game.upgrades['kitten_staff'].level}\n Bake power increased by [{game.kitten_staff_multiplier * 100:,.0f}%] of your stray bakers")
+    free_stray_upgrade_button.config(text=f"Cat Distribution System | Cost: {game.upgrades['free_stray'].cost:,.0f} | Level: {game.upgrades['free_stray'].level}\n Gain [{game.free_stray_amount}] free stray baker every day")
+    upgrade_button_overtime_baking.config(text=f"Overtime Baking | Cost: {game.upgrades['overtime_baking'].cost:,.0f} | Level: {game.upgrades['overtime_baking'].level}\n Bake [{(game.overtime_baking_bonus_multiplier - 1) * 100:,.0f}%] more bread during overtime hours")
 
 root = tk.Tk()
 root.title("We Knead Bread")
@@ -316,6 +390,12 @@ upgrade_button_kitten_staff = tk.Button(gray_baker_upgrade_frame,
 upgrade_button_kitten_staff.pack(padx=10,pady=10)
 gray_baker_upgrade_frame.pack_propagate(False)
 
+        #Overtime baking
+upgrade_button_overtime_baking = tk.Button(gray_baker_upgrade_frame, 
+                                            command=lambda: buy_upgrade(game.upgrades['overtime_baking']))
+upgrade_button_overtime_baking.pack(padx=10,pady=10)
+gray_baker_upgrade_frame.pack_propagate(False)
+
 #right column containers
 stray_baker_frame = tk.Frame(main_frame, width=640, bg="DarkOrange1")
 stray_baker_frame.pack(side=tk.RIGHT, fill="y", padx=(0,10), pady=10)
@@ -354,6 +434,10 @@ stray_baker_upgrade_frame.pack(padx=10, pady=10)
 tk.Label(stray_baker_upgrade_frame, text="Upgrades here", bg="gray").pack(padx=10, pady=10)
 stray_baker_upgrade_frame.pack_propagate(False)
 
+    #cat distribution system
+free_stray_upgrade_button = tk.Button(stray_baker_upgrade_frame,
+                                        command=lambda: buy_upgrade(game.upgrades['free_stray']))
+free_stray_upgrade_button.pack(padx=10, pady=10)
 
 #middle column containers
 middle_frame = tk.Frame(main_frame, bg="DarkOrange4")
@@ -386,7 +470,6 @@ per_second_label.pack()
 reset_button = tk.Button(bread_count_frame, text="Reset Game", command=reset_game_data_on_click)
 reset_button.pack(pady=10)
 
-
 #bottom middle box
 gumbie_frame = tk.Frame(middle_frame, width=640, height=660, bg="DarkOrange1")
 gumbie_frame.pack(pady=(10,0))
@@ -416,9 +499,9 @@ def save_game_data():
 
 def run_autobaker_loop():
     game.run_autobaker()
+    game.check_daily_stray()
     update_ui()
     root.after(1000, run_autobaker_loop)
-
 
 update_ui()
 save_game_data()
